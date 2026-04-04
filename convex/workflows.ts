@@ -76,6 +76,18 @@ export const agentWorkflow = wf.define({
     });
 
     try {
+      const agentAction = await step.runQuery(
+        internal.agentQueries.getAgentAction,
+        { taskId: args.taskId }
+      );
+      if (agentAction !== "fill_pdf") {
+        throw new Error(
+          agentAction
+            ? `Unsupported agent action: ${agentAction}`
+            : "Missing agent action"
+        );
+      }
+
       // Step 2: Execute the agent action
       // No retry — most failures are permanent (bad URL, bad parse).
       // Transient errors (5xx) are rare and the user can re-trigger manually.
@@ -108,12 +120,13 @@ export const agentWorkflow = wf.define({
           });
         }
       }
-    } catch (e: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
       // Step 3 (error path): Mark failed
       await step.runMutation(internal.agentQueries.setAgentStatus, {
         taskId: args.taskId,
         agentStatus: "error",
-        agentError: e.message || "Something went wrong",
+        agentError: message,
       });
     }
   },

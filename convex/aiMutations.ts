@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 import { wf } from "./workflowInit";
 
 export const getTaskItemId = internalQuery({
@@ -111,7 +112,7 @@ export const saveTaskBreakdown = internalMutation({
         text: v.string(),
         detail: v.string(),
         subtasks: v.array(v.string()),
-        agent_action: v.string(),
+        agent_action: v.union(v.literal(""), v.literal("fill_pdf")),
       })
     ),
     notices: v.array(v.object({ label: v.string(), value: v.string() })),
@@ -122,9 +123,9 @@ export const saveTaskBreakdown = internalMutation({
   },
   handler: async (ctx, args) => {
     let sortOrder = 0;
-    const agentTaskIds: any[] = [];
+    const agentTaskIds: Id<"tasks">[] = [];
     for (const task of args.tasks) {
-      const isAgent = task.agent_action && task.agent_action.trim() !== "";
+      const isAgent = task.agent_action === "fill_pdf";
       const parentId = await ctx.db.insert("tasks", {
         itemId: args.itemId,
         text: task.text,

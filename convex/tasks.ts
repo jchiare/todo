@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 export const getTask = query({
   args: { id: v.id("tasks") },
@@ -27,15 +28,15 @@ export const bulkCreate = mutation({
         text: v.string(),
         detail: v.optional(v.string()),
         subtasks: v.array(v.string()),
-        agent_action: v.optional(v.string()),
+        agent_action: v.optional(v.union(v.literal(""), v.literal("fill_pdf"))),
       })
     ),
   },
   handler: async (ctx, args) => {
     let sortOrder = 0;
-    const agentTaskIds: any[] = [];
+    const agentTaskIds: Id<"tasks">[] = [];
     for (const task of args.tasks) {
-      const isAgent = task.agent_action && task.agent_action.trim() !== "";
+      const isAgent = task.agent_action === "fill_pdf";
       const parentId = await ctx.db.insert("tasks", {
         itemId: args.itemId,
         text: task.text,

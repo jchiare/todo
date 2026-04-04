@@ -10,6 +10,7 @@
 
 import type * as agent from "../agent.js";
 import type * as agentQueries from "../agentQueries.js";
+import type * as agents_pdfGraph from "../agents/pdfGraph.js";
 import type * as ai from "../ai.js";
 import type * as aiMutations from "../aiMutations.js";
 import type * as items from "../items.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   agentQueries: typeof agentQueries;
+  "agents/pdfGraph": typeof agents_pdfGraph;
   ai: typeof ai;
   aiMutations: typeof aiMutations;
   items: typeof items;

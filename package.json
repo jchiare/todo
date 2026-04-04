@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@convex-dev/workflow": "^0.3.8",
+    "@langchain/core": "^1.1.38",
+    "@langchain/langgraph": "^1.2.6",
     "braintrust": "^3.7.0",
     "convex": "^1.34.1",
     "next": "16.2.1",

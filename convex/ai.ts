@@ -104,6 +104,7 @@ const taskBreakdownSchema = {
             },
             agent_action: {
               type: "string",
+              enum: ["", "fill_pdf"],
               description:
                 "If this task can be automated, specify the action. Available actions: 'fill_pdf' (download and fill a PDF form with known user info). Leave empty string for manual tasks. Use 'fill_pdf' when the task involves filling out a government or official form AND you know the PDF URL.",
             },
@@ -225,7 +226,7 @@ When in doubt, set ready=true and make reasonable assumptions rather than asking
 export const doTaskBreakdown = internalAction({
   args: { itemId: v.id("items") },
   handler: async (ctx, args): Promise<{
-    tasks: { text: string; detail: string; subtasks: string[]; agent_action: string }[];
+    tasks: { text: string; detail: string; subtasks: string[]; agent_action: "" | "fill_pdf" }[];
     notices: { label: string; value: string }[];
     summary: string;
     learned_facts: { fact: string; category: string }[];
@@ -292,4 +293,3 @@ AGENT TASKS — you can automate certain tasks:
     return JSON.parse(response.output_text);
   },
 });
-
