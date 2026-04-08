@@ -11,6 +11,11 @@
 import type * as agent from "../agent.js";
 import type * as agentQueries from "../agentQueries.js";
 import type * as agents_pdfGraph from "../agents/pdfGraph.js";
+import type * as agents_prompts_ai_clarificationPrompt from "../agents/prompts/ai/clarificationPrompt.js";
+import type * as agents_prompts_ai_taskBreakdownPrompt from "../agents/prompts/ai/taskBreakdownPrompt.js";
+import type * as agents_prompts_pdf_mapFieldsPrompt from "../agents/prompts/pdf/mapFieldsPrompt.js";
+import type * as agents_prompts_pdf_resolveUrlPrompt from "../agents/prompts/pdf/resolveUrlPrompt.js";
+import type * as agents_prompts_pdf_retryUrlPrompt from "../agents/prompts/pdf/retryUrlPrompt.js";
 import type * as ai from "../ai.js";
 import type * as aiMutations from "../aiMutations.js";
 import type * as items from "../items.js";
@@ -30,6 +35,11 @@ declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   agentQueries: typeof agentQueries;
   "agents/pdfGraph": typeof agents_pdfGraph;
+  "agents/prompts/ai/clarificationPrompt": typeof agents_prompts_ai_clarificationPrompt;
+  "agents/prompts/ai/taskBreakdownPrompt": typeof agents_prompts_ai_taskBreakdownPrompt;
+  "agents/prompts/pdf/mapFieldsPrompt": typeof agents_prompts_pdf_mapFieldsPrompt;
+  "agents/prompts/pdf/resolveUrlPrompt": typeof agents_prompts_pdf_resolveUrlPrompt;
+  "agents/prompts/pdf/retryUrlPrompt": typeof agents_prompts_pdf_retryUrlPrompt;
   ai: typeof ai;
   aiMutations: typeof aiMutations;
   items: typeof items;

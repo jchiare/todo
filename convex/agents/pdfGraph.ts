@@ -6,6 +6,9 @@ import OpenAI from "openai";
 import { traceable } from "langsmith/traceable";
 import { wrapOpenAI } from "langsmith/wrappers";
 import { END, START, StateGraph } from "@langchain/langgraph";
+import { buildResolveUrlPrompt } from "./prompts/pdf/resolveUrlPrompt";
+import { buildRetryUrlPrompt } from "./prompts/pdf/retryUrlPrompt";
+import { buildMapFieldsPrompt } from "./prompts/pdf/mapFieldsPrompt";
 
 const WEB_SEARCH_TOOL: OpenAI.Responses.WebSearchTool = { type: "web_search" };
 
@@ -74,6 +77,77 @@ type PdfFillState = {
 };
 
 // ── Helpers ──
+
+/** Deduplicate and structure a raw profile string into a compact form.
+ *  Later facts for the same key win (the user refined their answer). */
+function condenseProfile(raw: string): string {
+  const normalize = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ").trim();
+
+  const lines = raw.split("\n").filter((l) => l.trim());
+  const byCategory = new Map<string, Map<string, string>>();
+
+  for (const line of lines) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const category = line.slice(0, colonIdx).trim().toLowerCase();
+    const fact = line.slice(colonIdx + 1).trim();
+    if (!fact) continue;
+
+    if (!byCategory.has(category)) byCategory.set(category, new Map());
+    const facts = byCategory.get(category)!;
+
+    // Normalize for dedup: lowercase, collapse whitespace/punctuation
+    const normalized = normalize(fact);
+    // "Still needed:" items: key by the specific field name
+    const needMatch = fact.match(/^Still needed:\s*(.+)/i);
+    // Key-value facts ("Parent 1 full name: ..."): key by field so edits overwrite.
+    const keyValueMatch = fact.match(/^([^:]{2,80}):\s*(.+)$/);
+    const dedupeKey = needMatch
+      ? `need:${normalize(needMatch[1])}`
+      : keyValueMatch
+      ? `field:${normalize(keyValueMatch[1])}`
+      : `fact:${normalized}`;
+
+    // Last write wins — later facts are usually more refined
+    facts.set(dedupeKey, fact);
+  }
+
+  const categoryPriority = [
+    "personal",
+    "family",
+    "location",
+    "finance",
+    "work",
+    "health",
+    "preferences",
+    "other",
+    "needed_info",
+  ];
+  const orderedCategories = [...byCategory.keys()].sort((a, b) => {
+    const ai = categoryPriority.indexOf(a);
+    const bi = categoryPriority.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  const sections: string[] = [];
+  const seenAcrossCategories = new Set<string>();
+  for (const category of orderedCategories) {
+    const facts = byCategory.get(category)!;
+    const items = [...facts.values()].filter((fact) => {
+      const key = normalize(fact);
+      if (seenAcrossCategories.has(key)) return false;
+      seenAcrossCategories.add(key);
+      return true;
+    });
+    if (items.length === 0) continue;
+    sections.push(`[${category}]\n${items.map((f) => `- ${f}`).join("\n")}`);
+  }
+  return sections.length > 0 ? sections.join("\n\n") : raw;
+}
 
 function getClient() {
   return wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
@@ -210,11 +284,7 @@ const resolveUrlNode = traceable(
       input: [
         {
           role: "system",
-          content: `Find the direct download URL for a fillable PDF form.
-
-IMPORTANT: Use web search to find the CURRENT, working URL.
-
-Task: ${state.taskLabel}`,
+          content: buildResolveUrlPrompt(state.taskLabel),
         },
       ],
       text: { format: { type: "json_schema", ...URL_RESPONSE_SCHEMA } },
@@ -277,12 +347,7 @@ const retryUrlNode = traceable(
       input: [
         {
           role: "system",
-          content: `The following PDF URLs all returned errors and are broken or outdated:
-${state.failedUrls.map((u) => `- ${u}`).join("\n")}
-
-Use web search to find the CURRENT, working download URL for this exact form. Do NOT suggest any of the URLs listed above.
-
-Return ONLY the direct URL to the downloadable PDF, no other text.`,
+          content: buildRetryUrlPrompt(state.failedUrls),
         },
       ],
       text: { format: { type: "text" } },
@@ -335,27 +400,12 @@ const mapFieldsNode = traceable(
       input: [
         {
           role: "system",
-          content: `You are filling out a PDF form. Here are the EXACT field names and types in the form:
-
-${JSON.stringify(state.fieldInfo, null, 2)}
-
-Fill in every field you can based on the user context below. Use the EXACT field names from the list above.
-
-Rules:
-- Use ONLY field names that appear in the list above — exact spelling, exact casing.
-- For text fields, provide string values.
-- For checkbox fields, use true to check or false to uncheck.
-- For radio/dropdown fields, provide the option value as a string.
-- Fill EVERY field where you have the information. Be thorough.
-- For "missing_fields": describe fields you couldn't fill in plain English. Do NOT include sensitive fields (SSN, passport numbers, financial info).
-
-User profile:
-${state.profileStr}
-
-Conversation:
-${state.convoStr}
-
-Task: ${state.taskLabel}`,
+          content: buildMapFieldsPrompt({
+            fieldInfo: state.fieldInfo,
+            profileStr: state.profileStr,
+            convoStr: state.convoStr,
+            taskLabel: state.taskLabel,
+          }),
         },
       ],
       text: { format: { type: "json_schema", ...FIELD_MAPPING_SCHEMA } },
@@ -502,7 +552,7 @@ export const runPdfFillGraph = traceable(
   ): Promise<FillPdfResult> {
     const initialState: PdfFillState = {
       taskLabel: input.taskLabel,
-      profileStr: input.profileStr,
+      profileStr: condenseProfile(input.profileStr),
       convoStr: input.convoStr,
       pdfUrl: "",
       filename: "filled-form.pdf",
