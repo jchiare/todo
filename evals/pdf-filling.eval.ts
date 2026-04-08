@@ -110,13 +110,43 @@ ${convoStr}
 Task: ${taskText}`,
       },
     ],
-    text: { format: { type: "text" } },
+    text: {
+      format: {
+        type: "json_schema",
+        name: "field_mapping_response",
+        strict: false,
+        schema: {
+          type: "object",
+          properties: {
+            text_fields: {
+              type: "object",
+              additionalProperties: { type: "string" },
+            },
+            checkbox_fields: {
+              type: "object",
+              additionalProperties: { type: "boolean" },
+            },
+            radio_fields: {
+              type: "object",
+              additionalProperties: { type: "string" },
+            },
+            dropdown_fields: {
+              type: "object",
+              additionalProperties: { type: "string" },
+            },
+            missing_fields: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: ["text_fields", "checkbox_fields", "radio_fields", "dropdown_fields", "missing_fields"],
+          additionalProperties: false,
+        },
+      },
+    },
   });
 
-  const text = response.output_text.trim();
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Could not parse mapping response");
-  return JSON.parse(match[0]);
+  return JSON.parse(response.output_text);
 }
 
 // ---------- Scoring functions ----------

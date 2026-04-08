@@ -62,4 +62,39 @@ export default defineSchema({
     category: v.string(),
     createdAt: v.number(),
   }).index("by_category", ["category"]),
+
+  pdfAgentRuns: defineTable({
+    taskId: v.id("tasks"),
+    status: v.union(
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    currentNode: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    durationMs: v.optional(v.number()),
+    error: v.optional(v.string()),
+    // Trace events from each node
+    events: v.array(
+      v.object({
+        node: v.string(),
+        status: v.union(v.literal("success"), v.literal("error")),
+        startedAt: v.number(),
+        durationMs: v.number(),
+        error: v.optional(v.string()),
+        tokensUsed: v.optional(v.number()),
+      })
+    ),
+    // The final field mapping the AI produced
+    fieldMapping: v.optional(v.string()),
+    // Fields the AI returned that didn't match any real PDF field
+    invalidFields: v.optional(v.array(v.string())),
+    // Fields that existed but failed to write (wrong type, etc.)
+    skippedFields: v.optional(v.array(v.string())),
+    // Fields the AI couldn't fill due to missing info
+    missingFields: v.optional(v.array(v.string())),
+    // LangSmith trace URL for deep-dive
+    langsmithUrl: v.optional(v.string()),
+  }).index("by_task", ["taskId"]),
 });

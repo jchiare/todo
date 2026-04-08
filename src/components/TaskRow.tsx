@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { AgentTraceView } from "./AgentTraceView";
 
 type Task = {
   _id: Id<"tasks">;
@@ -320,6 +321,10 @@ export function TaskRow({
 
           {isAgent && task.agentStatus === "done" && task.artifactStorageId && task.artifactName && (
             <ArtifactDownload storageId={task.artifactStorageId} name={task.artifactName} />
+          )}
+
+          {isAgent && (task.agentStatus === "done" || task.agentStatus === "error") && (
+            <AgentTraceView taskId={task._id} />
           )}
         </div>
       </div>

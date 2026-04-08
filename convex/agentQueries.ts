@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, internalMutation, internalQuery } from "./_generated/server";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
 export const getArtifactUrl = query({
   args: { storageId: v.id("_storage") },
@@ -67,5 +67,83 @@ export const setAgentStatus = internalMutation({
     }
 
     await ctx.db.replace(taskId, nextTask);
+  },
+});
+
+// ── PDF Agent Run Tracking ──
+
+const traceEventValidator = v.object({
+  node: v.string(),
+  status: v.union(v.literal("success"), v.literal("error")),
+  startedAt: v.number(),
+  durationMs: v.number(),
+  error: v.optional(v.string()),
+  tokensUsed: v.optional(v.number()),
+});
+
+export const createAgentRun = internalMutation({
+  args: {
+    taskId: v.id("tasks"),
+  },
+  handler: async (ctx, args): Promise<Id<"pdfAgentRuns">> => {
+    return await ctx.db.insert("pdfAgentRuns", {
+      taskId: args.taskId,
+      status: "running",
+      startedAt: Date.now(),
+      events: [],
+    });
+  },
+});
+
+export const updateAgentRunNode = internalMutation({
+  args: {
+    runId: v.id("pdfAgentRuns"),
+    currentNode: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.runId, { currentNode: args.currentNode });
+  },
+});
+
+export const completeAgentRun = internalMutation({
+  args: {
+    runId: v.id("pdfAgentRuns"),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+    events: v.array(traceEventValidator),
+    error: v.optional(v.string()),
+    fieldMapping: v.optional(v.string()),
+    invalidFields: v.optional(v.array(v.string())),
+    skippedFields: v.optional(v.array(v.string())),
+    missingFields: v.optional(v.array(v.string())),
+    langsmithUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId);
+    if (!run) return;
+
+    const now = Date.now();
+    await ctx.db.patch(args.runId, {
+      status: args.status,
+      completedAt: now,
+      durationMs: now - run.startedAt,
+      events: args.events,
+      error: args.error,
+      fieldMapping: args.fieldMapping,
+      invalidFields: args.invalidFields,
+      skippedFields: args.skippedFields,
+      missingFields: args.missingFields,
+      langsmithUrl: args.langsmithUrl,
+    });
+  },
+});
+
+export const getAgentRun = query({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("pdfAgentRuns")
+      .withIndex("by_task", (q) => q.eq("taskId", args.taskId))
+      .order("desc")
+      .first();
   },
 });
