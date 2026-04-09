@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useState, useRef, useCallback } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { AgentTraceView } from "./AgentTraceView";
@@ -101,24 +101,35 @@ function DetailTooltip({
 }
 
 function ArtifactDownload({ storageId, name }: { storageId: Id<"_storage">; name: string }) {
-  const url = useQuery(api.agentQueries.getArtifactUrl, { storageId });
-  if (!url) return null;
+  const getSignedUrl = useAction(api.signedUrl.getSignedDownloadUrl);
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    try {
+      const url = await getSignedUrl({ storageId });
+      if (url) window.open(url, "_blank");
+    } finally {
+      setLoading(false);
+    }
+  }, [getSignedUrl, storageId, loading]);
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      onClick={handleDownload}
+      disabled={loading}
       className="inline-flex items-center gap-1.5 mt-1.5 px-3 py-1.5 rounded-lg
         bg-sage-100 text-sage-600 text-[12px] font-medium
-        hover:bg-sage-200 transition-colors cursor-pointer"
-      onClick={(e) => e.stopPropagation()}
+        hover:bg-sage-200 disabled:opacity-50 transition-colors cursor-pointer"
     >
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
         <path d="M2 10V2h3M7 2h3v3M6 6l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
-      {name}
-    </a>
+      {loading ? "Loading..." : name}
+    </button>
   );
 }
 

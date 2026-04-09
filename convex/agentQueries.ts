@@ -5,7 +5,11 @@ import { Doc, Id } from "./_generated/dataModel";
 export const getArtifactUrl = query({
   args: { storageId: v.id("_storage") },
   handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.storageId);
+    // Verify the file exists before returning the ID for signing
+    const meta = await ctx.db.system.get(args.storageId);
+    if (!meta) return null;
+    // Return the storageId — the client calls getSignedDownloadUrl action to get the actual URL
+    return args.storageId as string;
   },
 });
 
@@ -67,6 +71,35 @@ export const setAgentStatus = internalMutation({
     }
 
     await ctx.db.replace(taskId, nextTask);
+  },
+});
+
+// ── Storage cleanup ──
+
+/** One-off: delete all stored artifacts and clear references on tasks. */
+export const purgeAllArtifacts = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Find all tasks with stored artifacts
+    const tasks = await ctx.db.query("tasks").take(500);
+    let deleted = 0;
+    for (const task of tasks) {
+      if (task.artifactStorageId) {
+        await ctx.storage.delete(task.artifactStorageId);
+        await ctx.db.patch(task._id, {
+          artifactStorageId: undefined,
+          artifactUrl: undefined,
+        });
+        deleted++;
+      }
+    }
+    // Also sweep any orphaned storage entries
+    const storageEntries = await ctx.db.system.query("_storage").take(500);
+    for (const entry of storageEntries) {
+      await ctx.storage.delete(entry._id);
+      deleted++;
+    }
+    console.log(`Purged ${deleted} stored artifacts`);
   },
 });
 

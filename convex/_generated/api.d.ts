@@ -18,9 +18,11 @@ import type * as agents_prompts_pdf_resolveUrlPrompt from "../agents/prompts/pdf
 import type * as agents_prompts_pdf_retryUrlPrompt from "../agents/prompts/pdf/retryUrlPrompt.js";
 import type * as ai from "../ai.js";
 import type * as aiMutations from "../aiMutations.js";
+import type * as http from "../http.js";
 import type * as items from "../items.js";
 import type * as messages from "../messages.js";
 import type * as profile from "../profile.js";
+import type * as signedUrl from "../signedUrl.js";
 import type * as tasks from "../tasks.js";
 import type * as workflowInit from "../workflowInit.js";
 import type * as workflows from "../workflows.js";
@@ -42,9 +44,11 @@ declare const fullApi: ApiFromModules<{
   "agents/prompts/pdf/retryUrlPrompt": typeof agents_prompts_pdf_retryUrlPrompt;
   ai: typeof ai;
   aiMutations: typeof aiMutations;
+  http: typeof http;
   items: typeof items;
   messages: typeof messages;
   profile: typeof profile;
+  signedUrl: typeof signedUrl;
   tasks: typeof tasks;
   workflowInit: typeof workflowInit;
   workflows: typeof workflows;
