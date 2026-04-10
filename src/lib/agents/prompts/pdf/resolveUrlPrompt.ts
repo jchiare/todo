@@ -5,4 +5,3 @@ IMPORTANT: Use web search to find the CURRENT, working URL.
 
 Task: ${taskLabel}`;
 }
-

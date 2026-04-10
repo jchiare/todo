@@ -1,6 +1,3 @@
-"use node";
-
-import { Id } from "../_generated/dataModel";
 import { PDFDocument } from "pdf-lib";
 import OpenAI from "openai";
 import { traceable } from "langsmith/traceable";
@@ -9,6 +6,12 @@ import { END, START, StateGraph } from "@langchain/langgraph";
 import { buildResolveUrlPrompt } from "./prompts/pdf/resolveUrlPrompt";
 import { buildRetryUrlPrompt } from "./prompts/pdf/retryUrlPrompt";
 import { buildMapFieldsPrompt } from "./prompts/pdf/mapFieldsPrompt";
+import type {
+  TraceEvent,
+  FieldMapping,
+  FillPdfResult,
+  PdfFillGraphInput,
+} from "./types";
 
 const WEB_SEARCH_TOOL: OpenAI.Responses.WebSearchTool = { type: "web_search" };
 
@@ -19,44 +22,11 @@ class PermanentError extends Error {
   }
 }
 
-// ── Types ──
+// ── Internal types ──
 
 type FieldInfo = {
   name: string;
   type: string;
-};
-
-type FieldMapping = {
-  text_fields?: Record<string, unknown>;
-  checkbox_fields?: Record<string, unknown>;
-  radio_fields?: Record<string, unknown>;
-  dropdown_fields?: Record<string, unknown>;
-  missing_fields?: unknown;
-};
-
-export type TraceEvent = {
-  node: string;
-  status: "success" | "error";
-  startedAt: number;
-  durationMs: number;
-  error?: string;
-  tokensUsed?: number;
-};
-
-export type FillPdfResult = {
-  storageId: Id<"_storage">;
-  filename: string;
-  missingFields: string[];
-  invalidFields: string[];
-  skippedFields: string[];
-  traceEvents: TraceEvent[];
-  fieldMapping: FieldMapping | null;
-};
-
-export type PdfFillGraphInput = {
-  taskLabel: string;
-  profileStr: string;
-  convoStr: string;
 };
 
 type PdfFillState = {
@@ -97,19 +67,15 @@ function condenseProfile(raw: string): string {
     if (!byCategory.has(category)) byCategory.set(category, new Map());
     const facts = byCategory.get(category)!;
 
-    // Normalize for dedup: lowercase, collapse whitespace/punctuation
     const normalized = normalize(fact);
-    // "Still needed:" items: key by the specific field name
     const needMatch = fact.match(/^Still needed:\s*(.+)/i);
-    // Key-value facts ("Parent 1 full name: ..."): key by field so edits overwrite.
     const keyValueMatch = fact.match(/^([^:]{2,80}):\s*(.+)$/);
     const dedupeKey = needMatch
       ? `need:${normalize(needMatch[1])}`
       : keyValueMatch
-      ? `field:${normalize(keyValueMatch[1])}`
-      : `fact:${normalized}`;
+        ? `field:${normalize(keyValueMatch[1])}`
+        : `fact:${normalized}`;
 
-    // Last write wins — later facts are usually more refined
     facts.set(dedupeKey, fact);
   }
 
@@ -211,7 +177,6 @@ function withTracing<T extends PdfFillUpdate>(
         durationMs: Date.now() - startedAt,
         error: err instanceof Error ? err.message : String(err),
       };
-      // Still record the event before re-throwing
       state.traceEvents.push(event);
       throw err;
     }
@@ -439,7 +404,6 @@ const validateMappingNode = traceable(
       }
     }
 
-    // Remove invalid fields from the mapping so we don't try to write them
     if (invalidFields.length > 0) {
       const clean = (obj: Record<string, unknown> | undefined) => {
         if (!obj) return obj;
@@ -470,7 +434,7 @@ const validateMappingNode = traceable(
 const fillAndStoreNode = traceable(
   async (
     state: PdfFillState,
-    storeArtifact: (blob: Blob) => Promise<Id<"_storage">>
+    storeArtifact: (blob: Blob) => Promise<string>
   ): Promise<PdfFillUpdate> => {
     if (!state.pdfBytes) throw new PermanentError("No PDF bytes to fill");
 
@@ -548,7 +512,7 @@ function nextNodeAfterDownload(
 export const runPdfFillGraph = traceable(
   async function runPdfFillGraph(
     input: PdfFillGraphInput,
-    storeArtifact: (blob: Blob) => Promise<Id<"_storage">>
+    storeArtifact: (blob: Blob) => Promise<string>
   ): Promise<FillPdfResult> {
     const initialState: PdfFillState = {
       taskLabel: input.taskLabel,

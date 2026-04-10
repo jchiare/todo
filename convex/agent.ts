@@ -3,7 +3,8 @@
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { FillPdfResult, runPdfFillGraph } from "./agents/pdfGraph";
+import { runPdfFillGraph } from "../src/lib/agents/pdfGraph";
+import type { FillPdfResult } from "../src/lib/agents/types";
 
 class PermanentError extends Error {
   constructor(message: string) {
@@ -42,7 +43,10 @@ export const doFillPdf = internalAction({
           profileStr,
           convoStr,
         },
-        (blob) => ctx.storage.store(blob)
+        async (blob) => {
+          const id = await ctx.storage.store(blob);
+          return id as string;
+        }
       );
 
       // Persist the successful run trace

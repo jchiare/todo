@@ -17,4 +17,3 @@ Keep questions practical and grounded. Don't over-think simple goals.
 For straightforward goals (e.g., "take out the trash"), skip questions entirely — set ready=true.
 When in doubt, set ready=true and make reasonable assumptions rather than asking.${profileContext}`;
 }
-

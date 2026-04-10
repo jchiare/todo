@@ -32,4 +32,3 @@ AGENT TASKS — you can automate certain tasks:
 - Agent tasks run automatically — the user gets the completed artifact without lifting a finger.
 - For the task text, phrase it as the outcome: "Fill out DS-11 application" not "Download and fill the PDF".${profileContext}`;
 }
-

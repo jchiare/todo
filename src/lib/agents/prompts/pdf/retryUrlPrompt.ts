@@ -6,4 +6,3 @@ Use web search to find the CURRENT, working download URL for this exact form. Do
 
 Return ONLY the direct URL to the downloadable PDF, no other text.`;
 }
-

@@ -102,7 +102,7 @@ export const agentWorkflow = wf.define({
         taskId: args.taskId,
         agentStatus: "done",
         completed: true,
-        artifactStorageId: result.storageId,
+        artifactStorageId: result.storageId as any,
         artifactName: result.filename,
       });
 
