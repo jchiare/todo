@@ -1,39 +1,43 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-cream: #FAF8F5;
-  --color-warm: #F3F0EB;
-  --color-sage-100: #E8EDE9;
-  --color-sage-200: #C8D5CA;
-  --color-sage-400: #8FA893;
-  --color-sage-600: #5C7A61;
-  --color-stone-400: #A8A29E;
-  --color-stone-600: #57534E;
-  --color-stone-800: #292524;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Design tokens live in src/lib/lifeos/tokens.ts (inline styles match the
+   handoff exactly). Font CSS variables (--font-serif / --font-sans /
+   --font-mono) are provided by next/font in layout.tsx. Here we set only the
+   page-level base + the one keyframe. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--color-cream);
-  color: var(--color-stone-600);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background: #f2eee5;
+  color: #2b2825;
+  font-family: var(--font-sans);
 }
 
-/* Smooth checkbox animation */
-input[type="checkbox"] {
-  accent-color: var(--color-sage-400);
-  transition: all 0.2s ease;
+::selection {
+  background: #d7e0e8;
 }
 
-/* Subtle scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+button {
+  font-family: inherit;
+  cursor: pointer;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-sage-200);
-  border-radius: 3px;
+
+/* Action cards fade/translate in on mount. Otherwise: calm by default. */
+@keyframes loUp {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
