@@ -1,68 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { ItemList } from "@/components/ItemList";
-import { ItemDetail } from "@/components/ItemDetail";
-import { InputBar } from "@/components/InputBar";
-import { ConvexProvider } from "@/components/ConvexProvider";
-import { Id } from "../../convex/_generated/dataModel";
-
-function App() {
-  const [selectedId, setSelectedId] = useState<Id<"items"> | null>(null);
-  const items = useQuery(api.items.list);
-  const selectedItem = items?.find((i) => i._id === selectedId);
-
-  return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <header className="px-6 pt-6 pb-2">
-        <h1 className="text-xl font-semibold text-stone-800 tracking-tight">
-          Done.
-        </h1>
-      </header>
-
-      {/* Content */}
-      <div className="flex-1 flex min-h-0">
-        {selectedId ? (
-          <>
-            {/* Sidebar list when detail is open */}
-            <div className="w-80 flex flex-col border-r border-sage-100 flex-shrink-0">
-              <ItemList selectedId={selectedId} onSelect={setSelectedId} />
-            </div>
-            {/* Detail panel */}
-            <div className="flex-1 flex flex-col min-w-0">
-              <ItemDetail
-                itemId={selectedId}
-                onClose={() => setSelectedId(null)}
-              />
-            </div>
-          </>
-        ) : (
-          /* Centered list when nothing selected */
-          <div className="flex-1 flex justify-center">
-            <div className="w-full max-w-lg">
-              <ItemList selectedId={selectedId} onSelect={setSelectedId} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input Bar */}
-      <InputBar
-        selectedItemId={selectedId}
-        selectedItemStatus={selectedItem?.status ?? null}
-        onItemCreated={(id) => setSelectedId(id)}
-      />
-    </div>
-  );
-}
+import { C, fonts } from "@/lib/lifeos/tokens";
+import { build } from "@/lib/lifeos/ranking";
+import { useLifeOS } from "@/lib/lifeos/store";
+import { Sidebar } from "@/components/lifeos/Sidebar";
+import { Today } from "@/components/lifeos/Today";
+import { ProjectsList } from "@/components/lifeos/ProjectsList";
+import { ProjectDetail } from "@/components/lifeos/ProjectDetail";
 
 export default function Page() {
+  const lifeos = useLifeOS();
+  const { state, actions, allProjects } = lifeos;
+
+  const projects = allProjects();
+  // Live count for the Today nav badge mirrors the ranked list length.
+  const { live } = build(projects, state.ov, state.completed, state.manualOrder);
+  const selected =
+    state.selectedProjectId != null
+      ? projects.find((p) => p.id === state.selectedProjectId) ?? null
+      : null;
+
   return (
-    <ConvexProvider>
-      <App />
-    </ConvexProvider>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        fontFamily: fonts.sans,
+        color: C.textPrimary,
+        background: C.appBg,
+      }}
+    >
+      <Sidebar
+        screen={state.screen}
+        liveCount={live.length}
+        projectCount={projects.length}
+        onNavigate={actions.setScreen}
+      />
+      <main
+        style={{ flex: 1, minWidth: 0, padding: "46px 56px 90px", maxWidth: 880 }}
+      >
+        {state.screen === "today" && <Today lifeos={lifeos} />}
+        {state.screen === "projects" &&
+          (selected ? (
+            <ProjectDetail project={selected} lifeos={lifeos} />
+          ) : (
+            <ProjectsList lifeos={lifeos} />
+          ))}
+      </main>
+    </div>
   );
 }
